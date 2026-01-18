@@ -1,6 +1,5 @@
-"""
-EcoPredict: Ecological Prediction System
-"""
+"""EcoPredict - Ecological Prediction System"""
 
 __version__ = "1.0.0"
 __author__ = "EcoPredict Team"
+__description__ = "Machine learning system for ecological risk prediction"

@@ -1,7 +1,7 @@
-"""Training modules for EcoPredict"""
+"""Model training modules for EcoPredict"""
 
-from .train import ModelTrainer
+from .train import ModelTrainer, train_pipeline
 from .evaluate import ModelEvaluator
 from .cross_validation import CrossValidator
 
-__all__ = ['ModelTrainer', 'ModelEvaluator', 'CrossValidator']
+__all__ = ['ModelTrainer', 'train_pipeline', 'ModelEvaluator', 'CrossValidator']

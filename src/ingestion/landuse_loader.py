@@ -15,7 +15,7 @@ from ..utils.helpers import validate_coordinates, create_grid
 logger = get_logger(__name__)
 
 
-class LandUseLoader:
+class LandUseDataLoader:
     """Loads and processes land use data from various sources"""
     
     def __init__(self, data_dir: str = "data/raw/land_use"):

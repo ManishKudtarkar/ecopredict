@@ -14,7 +14,7 @@ from ..utils.helpers import validate_coordinates, calculate_distance
 logger = get_logger(__name__)
 
 
-class SpeciesLoader:
+class SpeciesDataLoader:
     """Loads and processes species occurrence data from various sources"""
     
     def __init__(self, data_dir: str = "data/raw/species_occurrence"):
