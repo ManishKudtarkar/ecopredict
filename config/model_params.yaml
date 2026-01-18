@@ -1,0 +1,4 @@
+random_forest:
+  n_estimators: 200
+  max_depth: 12
+  random_state: 42
