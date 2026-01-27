@@ -3,7 +3,7 @@
 import pickle
 import yaml
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, List
 import pandas as pd
 import numpy as np
 from sklearn.base import BaseEstimator
@@ -177,3 +177,141 @@ def get_risk_category(risk_score: float, thresholds: Dict[str, float]) -> str:
         return 'medium'
     else:
         return 'high'
+
+
+def save_results(results: Dict[str, Any], filepath: str) -> None:
+    """Save results to JSON file
+    
+    Args:
+        results: Results dictionary
+        filepath: Path to save file
+    """
+    try:
+        Path(filepath).parent.mkdir(parents=True, exist_ok=True)
+        
+        # Convert numpy types to native Python types
+        def convert_numpy(obj):
+            if isinstance(obj, np.integer):
+                return int(obj)
+            elif isinstance(obj, np.floating):
+                return float(obj)
+            elif isinstance(obj, np.ndarray):
+                return obj.tolist()
+            elif isinstance(obj, dict):
+                return {key: convert_numpy(value) for key, value in obj.items()}
+            elif isinstance(obj, list):
+                return [convert_numpy(item) for item in obj]
+            return obj
+        
+        converted_results = convert_numpy(results)
+        
+        with open(filepath, 'w') as f:
+            json.dump(converted_results, f, indent=2, default=str)
+        
+        logger.info(f"Results saved to {filepath}")
+    except Exception as e:
+        logger.error(f"Error saving results: {e}")
+        raise
+
+
+def create_directories(paths: List[str]) -> None:
+    """Create directories if they don't exist
+    
+    Args:
+        paths: List of directory paths to create
+    """
+    for path in paths:
+        Path(path).mkdir(parents=True, exist_ok=True)
+        logger.debug(f"Created directory: {path}")
+
+
+def load_data_file(filepath: str) -> pd.DataFrame:
+    """Load data from various file formats
+    
+    Args:
+        filepath: Path to data file
+        
+    Returns:
+        Loaded DataFrame
+    """
+    filepath = Path(filepath)
+    
+    if filepath.suffix.lower() == '.csv':
+        return pd.read_csv(filepath)
+    elif filepath.suffix.lower() in ['.xlsx', '.xls']:
+        return pd.read_excel(filepath)
+    elif filepath.suffix.lower() == '.json':
+        return pd.read_json(filepath)
+    elif filepath.suffix.lower() == '.parquet':
+        return pd.read_parquet(filepath)
+    else:
+        raise ValueError(f"Unsupported file format: {filepath.suffix}")
+
+
+def get_timestamp() -> str:
+    """Get current timestamp as string
+    
+    Returns:
+        Formatted timestamp string
+    """
+    return datetime.now().strftime("%Y%m%d_%H%M%S")
+
+
+def validate_data_quality(data: pd.DataFrame, 
+                         required_columns: List[str],
+                         min_rows: int = 10) -> Dict[str, Any]:
+    """Validate data quality
+    
+    Args:
+        data: Input DataFrame
+        required_columns: List of required column names
+        min_rows: Minimum number of rows required
+        
+    Returns:
+        Validation results dictionary
+    """
+    results = {
+        'valid': True,
+        'issues': [],
+        'stats': {}
+    }
+    
+    # Check minimum rows
+    if len(data) < min_rows:
+        results['valid'] = False
+        results['issues'].append(f"Insufficient data: {len(data)} rows (minimum: {min_rows})")
+    
+    # Check required columns
+    missing_cols = [col for col in required_columns if col not in data.columns]
+    if missing_cols:
+        results['valid'] = False
+        results['issues'].append(f"Missing columns: {missing_cols}")
+    
+    # Check for empty data
+    if data.empty:
+        results['valid'] = False
+        results['issues'].append("DataFrame is empty")
+    
+    # Calculate statistics
+    results['stats'] = {
+        'rows': len(data),
+        'columns': len(data.columns),
+        'missing_values': data.isnull().sum().sum(),
+        'duplicate_rows': data.duplicated().sum()
+    }
+    
+    return results
+
+
+def clip_to_bounds(value: float, min_val: float, max_val: float) -> float:
+    """Clip value to specified bounds
+    
+    Args:
+        value: Input value
+        min_val: Minimum allowed value
+        max_val: Maximum allowed value
+        
+    Returns:
+        Clipped value
+    """
+    return max(min_val, min(max_val, value))

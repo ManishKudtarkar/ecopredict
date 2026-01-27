@@ -1,63 +1,49 @@
-"""Constants used throughout the EcoPredict system"""
+"""Constants for EcoPredict"""
 
-# File paths
-CONFIG_DIR = "config"
-DATA_DIR = "data"
-MODELS_DIR = "models"
-OUTPUTS_DIR = "outputs"
+# Data paths
+RAW_DATA_PATH = "data/raw/"
+PROCESSED_DATA_PATH = "data/processed/"
+EXTERNAL_DATA_PATH = "data/external/"
 
-# Data subdirectories
-RAW_DATA_DIR = f"{DATA_DIR}/raw"
-PROCESSED_DATA_DIR = f"{DATA_DIR}/processed"
-EXTERNAL_DATA_DIR = f"{DATA_DIR}/external"
+# Model paths
+MODELS_PATH = "models/trained/"
+METRICS_PATH = "models/metrics/"
 
-# Model subdirectories
-TRAINED_MODELS_DIR = f"{MODELS_DIR}/trained"
-MODEL_METRICS_DIR = f"{MODELS_DIR}/metrics"
+# Output paths
+OUTPUTS_PATH = "outputs/"
+MAPS_PATH = "outputs/maps/"
+REPORTS_PATH = "outputs/reports/"
 
 # File extensions
-MODEL_EXTENSION = ".pkl"
-CONFIG_EXTENSION = ".yaml"
-DATA_EXTENSION = ".csv"
+SUPPORTED_DATA_FORMATS = ['.csv', '.xlsx', '.json', '.geojson', '.shp']
+SUPPORTED_IMAGE_FORMATS = ['.png', '.jpg', '.jpeg', '.tiff', '.geotiff']
 
-# Model types
-RANDOM_FOREST = "random_forest"
-XGBOOST = "xgboost"
-LINEAR_REGRESSION = "linear_regression"
-
-# Risk levels
-RISK_LOW = "low"
-RISK_MEDIUM = "medium"
-RISK_HIGH = "high"
-
-# Default parameters
-DEFAULT_TEST_SIZE = 0.2
+# Model parameters
 DEFAULT_RANDOM_STATE = 42
+DEFAULT_TEST_SIZE = 0.2
 DEFAULT_CV_FOLDS = 5
 
-# API settings
-API_HOST = "0.0.0.0"
-API_PORT = 8000
+# Risk thresholds
+RISK_THRESHOLDS = {
+    'low': 0.3,
+    'medium': 0.6,
+    'high': 1.0
+}
 
-# Dashboard settings
-DASHBOARD_HOST = "0.0.0.0"
-DASHBOARD_PORT = 8501
+# Geographic constants
+DEFAULT_CRS = 'EPSG:4326'  # WGS84
+INDIA_BOUNDS = {
+    'min_lat': 6.0,
+    'max_lat': 37.0,
+    'min_lon': 68.0,
+    'max_lon': 98.0
+}
 
-# Coordinate system
-DEFAULT_CRS = "EPSG:4326"  # WGS84
+# API constants
+API_VERSION = "v1"
+MAX_PREDICTION_POINTS = 1000
+DEFAULT_TIMEOUT = 30
 
-# Feature columns
-CLIMATE_FEATURES = [
-    'temperature', 'precipitation', 'humidity', 'wind_speed'
-]
-
-LANDUSE_FEATURES = [
-    'forest_cover', 'agricultural_area', 'urban_area', 'water_bodies'
-]
-
-SPECIES_FEATURES = [
-    'species_count', 'endemic_species', 'threatened_species'
-]
-
-# All features combined
-ALL_FEATURES = CLIMATE_FEATURES + LANDUSE_FEATURES + SPECIES_FEATURES
+# Dashboard constants
+DEFAULT_MAP_CENTER = [20.5937, 78.9629]  # India center
+DEFAULT_MAP_ZOOM = 5

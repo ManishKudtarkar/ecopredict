@@ -15,9 +15,9 @@ sys.path.append(str(Path(__file__).parent.parent / "src"))
 
 from utils.logger import get_logger
 from utils.helpers import load_config
-from ingestion.climate_loader import ClimateLoader
-from ingestion.landuse_loader import LandUseLoader
-from ingestion.species_loader import SpeciesLoader
+from ingestion.climate_loader import ClimateDataLoader
+from ingestion.landuse_loader import LandUseDataLoader
+from ingestion.species_loader import SpeciesDataLoader
 from preprocessing.clean_data import DataCleaner
 from preprocessing.feature_engineering import FeatureEngineer
 from preprocessing.normalize import DataNormalizer
@@ -39,16 +39,16 @@ def load_data(config: dict) -> pd.DataFrame:
     bounds = (72.0, 15.0, 80.0, 22.0)  # Maharashtra approximate bounds
     
     # Load climate data
-    climate_loader = ClimateLoader()
+    climate_loader = ClimateDataLoader()
     climate_data = climate_loader.generate_synthetic_data(bounds, resolution=0.1, num_days=365)
     climate_monthly = climate_loader.aggregate_monthly(climate_data)
     
     # Load land use data
-    landuse_loader = LandUseLoader()
+    landuse_loader = LandUseDataLoader()
     landuse_data = landuse_loader.generate_synthetic_data(bounds, resolution=0.1)
     
     # Load species data
-    species_loader = SpeciesLoader()
+    species_loader = SpeciesDataLoader()
     species_data = species_loader.generate_synthetic_data(bounds, num_records=5000)
     
     # Create grid for analysis

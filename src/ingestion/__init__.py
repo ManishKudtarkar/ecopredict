@@ -1,7 +1,7 @@
 """Data ingestion modules for EcoPredict"""
 
-from .climate_loader import ClimateLoader
-from .landuse_loader import LandUseLoader
-from .species_loader import SpeciesLoader
+from .climate_loader import ClimateDataLoader
+from .landuse_loader import LandUseDataLoader
+from .species_loader import SpeciesDataLoader
 
-__all__ = ['ClimateLoader', 'LandUseLoader', 'SpeciesLoader']
+__all__ = ['ClimateDataLoader', 'LandUseDataLoader', 'SpeciesDataLoader']

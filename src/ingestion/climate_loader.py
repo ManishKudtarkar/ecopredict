@@ -13,7 +13,7 @@ from ..utils.helpers import validate_coordinates
 logger = get_logger(__name__)
 
 
-class ClimateLoader:
+class ClimateDataLoader:
     """Loads and processes climate data from various sources"""
     
     def __init__(self, data_dir: str = "data/raw/climate"):

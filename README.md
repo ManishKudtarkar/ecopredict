@@ -1,9 +1,7 @@
 # EcoPredict
 
 A comprehensive ecological prediction system that uses machine learning to predict environmental risks and species distribution patterns.
-
 ## Overview
-
 EcoPredict combines climate data, land use information, and species occurrence data to predict ecological risks and generate actionable insights for environmental conservation and management.
 
 ## Features
@@ -73,13 +71,7 @@ Edit configuration files in the `config/` directory:
 - `config.yaml`: General project settings
 - `model_params.yaml`: ML model parameters
 - `paths.yaml`: Data and output paths
-
 ## API Endpoints
-
-- `GET /predict`: Get predictions for coordinates
 - `GET /risk-zones`: Get risk zone boundaries
 - `GET /heatmap`: Generate risk heatmaps
 
-## License
-
-MIT License - see LICENSE file for details.
