@@ -1,6 +1,10 @@
 """Streamlit dashboard for EcoPredict"""
 
+import sys
+from pathlib import Path
+
 import streamlit as st
+from streamlit.components.v1 import html
 import pandas as pd
 import numpy as np
 import plotly.express as px
@@ -8,27 +12,33 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import folium
 from streamlit_folium import st_folium
-from pathlib import Path
 import json
 
-from ..prediction.predict import EcoPredictionEngine
-from ..gis.heatmap import HeatmapGenerator
-from ..utils.logger import get_logger
-from ..utils.helpers import validate_coordinates, load_config
-from .components import (
-    create_risk_gauge, create_species_chart, 
+# Ensure project root is on sys.path when run via `streamlit run`
+ROOT_DIR = Path(__file__).resolve().parents[1]
+if str(ROOT_DIR) not in sys.path:
+    sys.path.append(str(ROOT_DIR))
+
+from src.prediction.predict import EcoPredictionEngine
+from src.gis.heatmap import HeatmapGenerator
+from src.utils.logger import get_logger
+from src.utils.helpers import validate_coordinates, load_config
+from src.dashboard.components import (
+    create_risk_gauge, create_species_chart,
     create_climate_trends, create_land_use_pie
 )
 
 logger = get_logger(__name__)
 
-# Page configuration
-st.set_page_config(
-    page_title="EcoPredict Dashboard",
-    page_icon="🌍",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+# Page configuration (guard to avoid double-call on reruns)
+if not st.session_state.get("_page_config_set", False):
+    st.set_page_config(
+        page_title="EcoPredict Dashboard",
+        page_icon="🌍",
+        layout="wide",
+        initial_sidebar_state="expanded"
+    )
+    st.session_state["_page_config_set"] = True
 
 # Custom CSS
 st.markdown("""
@@ -58,6 +68,12 @@ def load_sample_data():
     # Generate sample data
     np.random.seed(42)
     n_points = 100
+
+    species_names = [
+        "Tiger", "Leopard", "Elephant", "Gaur", "Sambar", "Chital",
+        "Sloth Bear", "Wild Dog", "Peacock", "Hornbill", "Langur",
+        "Python", "Crocodile"
+    ]
     
     # Maharashtra bounds
     lat_range = (15.6, 22.0)
@@ -70,7 +86,8 @@ def load_sample_data():
         'species_count': np.random.poisson(15, n_points),
         'forest_cover': np.random.uniform(0, 1, n_points),
         'temperature': np.random.normal(25, 5, n_points),
-        'precipitation': np.random.exponential(2, n_points)
+        'precipitation': np.random.exponential(2, n_points),
+        'species_name': np.random.choice(species_names, n_points)
     }
     
     df = pd.DataFrame(data)
@@ -204,14 +221,19 @@ def show_overview(data):
         folium.CircleMarker(
             location=[row['latitude'], row['longitude']],
             radius=5,
-            popup=f"Risk: {row['risk_score']:.3f}<br>Species: {row['species_count']}<br>Forest: {row['forest_cover']:.1%}",
+            popup=(
+                f"Risk: {row['risk_score']:.3f}<br>"
+                f"Species Name: {row['species_name']}<br>"
+                f"Species Count: {row['species_count']}<br>"
+                f"Forest: {row['forest_cover']:.1%}"
+            ),
             color=color,
             fill=True,
             fillOpacity=0.7
         ).add_to(m)
     
-    # Display map
-    map_data = st_folium(m, width=700, height=500)
+    # Display map without JSON serialization issues
+    html(m._repr_html_(), height=500)
 
 
 def show_risk_prediction(data):
@@ -290,7 +312,7 @@ def show_risk_prediction(data):
                 icon=folium.Icon(color='red' if risk_score > 0.6 else 'orange' if risk_score > 0.3 else 'green')
             ).add_to(m)
             
-            st_folium(m, width=700, height=400)
+            html(m._repr_html_(), height=400)
         
         else:
             st.error("Invalid coordinates. Please check latitude and longitude values.")
@@ -334,7 +356,9 @@ def show_species_analysis(data):
     
     # Biodiversity hotspots
     st.subheader("Biodiversity Hotspots")
-    hotspots = data.nlargest(10, 'species_count')[['latitude', 'longitude', 'species_count', 'risk_score']]
+    hotspots = data.nlargest(10, 'species_count')[[
+        'latitude', 'longitude', 'species_name', 'species_count', 'risk_score'
+    ]]
     st.dataframe(hotspots, use_container_width=True)
 
 

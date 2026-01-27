@@ -3,7 +3,7 @@
 import pickle
 import yaml
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, List
 import pandas as pd
 import numpy as np
 from sklearn.base import BaseEstimator
