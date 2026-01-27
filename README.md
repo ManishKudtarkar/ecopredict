@@ -80,6 +80,3 @@ Edit configuration files in the `config/` directory:
 - `GET /risk-zones`: Get risk zone boundaries
 - `GET /heatmap`: Generate risk heatmaps
 
-## License
-
-MIT License - see LICENSE file for details.
