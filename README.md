@@ -3,18 +3,14 @@
 A comprehensive ecological prediction system that uses machine learning to predict environmental risks and species distribution patterns.
 ## Overview
 EcoPredict combines climate data, land use information, and species occurrence data to predict ecological risks and generate actionable insights for environmental conservation and management.
-
 ## Features
-
 - **Multi-source Data Integration**: Climate, land use, and species occurrence data
 - **Machine Learning Models**: Random Forest, XGBoost, and Linear Regression
 - **GIS Integration**: Spatial analysis and risk zone mapping
 - **Interactive Dashboard**: Real-time visualization and analysis
 - **REST API**: Programmatic access to predictions
 - **Docker Support**: Containerized deployment
-
 ## Project Structure
-
 ```
 EcoPredict/
 ├── config/           # Configuration files
