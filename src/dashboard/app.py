@@ -1,6 +1,12 @@
 """Streamlit dashboard for EcoPredict"""
 
+import sys
+from pathlib import Path
+from datetime import datetime
+import requests
+
 import streamlit as st
+from streamlit.components.v1 import html
 import pandas as pd
 import numpy as np
 import plotly.express as px
@@ -8,27 +14,33 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import folium
 from streamlit_folium import st_folium
-from pathlib import Path
 import json
 
-from ..prediction.predict import EcoPredictionEngine
-from ..gis.heatmap import HeatmapGenerator
-from ..utils.logger import get_logger
-from ..utils.helpers import validate_coordinates, load_config
-from .components import (
-    create_risk_gauge, create_species_chart, 
+# Ensure project root is on sys.path when run via `streamlit run`
+ROOT_DIR = Path(__file__).resolve().parents[1]
+if str(ROOT_DIR) not in sys.path:
+    sys.path.append(str(ROOT_DIR))
+
+from src.prediction.predict import EcoPredictionEngine
+from src.gis.heatmap import HeatmapGenerator
+from src.utils.logger import get_logger
+from src.utils.helpers import validate_coordinates, load_config
+from src.dashboard.components import (
+    create_risk_gauge, create_species_chart,
     create_climate_trends, create_land_use_pie
 )
 
 logger = get_logger(__name__)
 
-# Page configuration
-st.set_page_config(
-    page_title="EcoPredict Dashboard",
-    page_icon="🌍",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+# Page configuration (guard to avoid double-call on reruns)
+if not st.session_state.get("_page_config_set", False):
+    st.set_page_config(
+        page_title="EcoPredict Dashboard",
+        page_icon="🌍",
+        layout="wide",
+        initial_sidebar_state="expanded"
+    )
+    st.session_state["_page_config_set"] = True
 
 # Custom CSS
 st.markdown("""
@@ -52,32 +64,122 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
-@st.cache_data
+@st.cache_data(show_spinner=False)
 def load_sample_data():
-    """Load sample data for demonstration"""
-    # Generate sample data
+    """Fallback synthetic data"""
     np.random.seed(42)
     n_points = 100
-    
-    # Maharashtra bounds
+
+    species_names = [
+        "Tiger", "Leopard", "Elephant", "Gaur", "Sambar", "Chital",
+        "Sloth Bear", "Wild Dog", "Peacock", "Hornbill", "Langur",
+        "Python", "Crocodile"
+    ]
+
     lat_range = (15.6, 22.0)
     lon_range = (72.6, 80.9)
-    
-    data = {
+
+    df = pd.DataFrame({
         'latitude': np.random.uniform(lat_range[0], lat_range[1], n_points),
         'longitude': np.random.uniform(lon_range[0], lon_range[1], n_points),
-        'risk_score': np.random.beta(2, 5, n_points),  # Skewed towards lower risk
+        'risk_score': np.random.beta(2, 5, n_points),
         'species_count': np.random.poisson(15, n_points),
         'forest_cover': np.random.uniform(0, 1, n_points),
         'temperature': np.random.normal(25, 5, n_points),
-        'precipitation': np.random.exponential(2, n_points)
+        'precipitation': np.random.exponential(2, n_points),
+        'species_name': np.random.choice(species_names, n_points),
+        'event_year': np.random.randint(2000, 2024, n_points),
+    })
+
+    df['risk_category'] = pd.cut(
+        df['risk_score'], bins=[0, 0.33, 0.66, 1.0], labels=['Low', 'Medium', 'High']
+    )
+    return df
+
+
+@st.cache_data(show_spinner=True)
+def load_gbif_data(scientific_name: str | None, country: str | None, limit: int = 300):
+    """Fetch occurrence data from GBIF and derive a proxy risk score.
+
+    Risk proxy: rarity (inverse of species frequency in the fetched slice) blended with recency.
+    Note: GBIF does not provide birth/death ratios; this is an occurrence-based heuristic.
+    """
+    params = {
+        "hasCoordinate": "true",
+        "hasGeospatialIssue": "false",
+        "limit": min(max(limit, 10), 2000),
     }
+    if scientific_name:
+        params["scientificName"] = scientific_name
+    if country:
+        params["country"] = country
+
+    resp = requests.get("https://api.gbif.org/v1/occurrence/search", params=params, timeout=20)
+    resp.raise_for_status()
+    resp_json = resp.json()
+    results = resp_json.get("results", [])
     
-    df = pd.DataFrame(data)
-    df['risk_category'] = pd.cut(df['risk_score'], 
-                                bins=[0, 0.3, 0.6, 1.0], 
-                                labels=['Low', 'Medium', 'High'])
-    
+    if not results:
+        raise ValueError(f"No GBIF results. Response: {resp_json}")
+
+    records = []
+    for r in results:
+        lat = r.get("decimalLatitude")
+        lon = r.get("decimalLongitude")
+        
+        # Skip records without coordinates
+        if lat is None or lon is None:
+            continue
+            
+        name = r.get("species") or r.get("scientificName") or "Unknown"
+        date_str = r.get("eventDate") or r.get("occurrenceDate")
+        year = None
+        if date_str:
+            try:
+                year = datetime.fromisoformat(date_str.split("/")[0]).year
+            except Exception:
+                try:
+                    year = int(str(r.get("year"))) if r.get("year") else None
+                except Exception:
+                    year = None
+        records.append({
+            "latitude": float(lat),
+            "longitude": float(lon),
+            "species_name": name,
+            "event_year": year,
+            "country": r.get("countryCode"),
+        })
+
+    if not records:
+        raise ValueError("No records with valid coordinates after filtering")
+        
+    df = pd.DataFrame(records)
+
+    # Fill missing years with median for scoring
+    df["event_year"].fillna(df["event_year"].median(), inplace=True)
+
+    # Rarity-based risk (rarer species -> higher risk)
+    freq = df["species_name"].value_counts()
+    df = df.join(freq.rename("freq"), on="species_name")
+    df["rarity_score"] = 1 - (df["freq"] - df["freq"].min()) / max(df["freq"].max() - df["freq"].min(), 1)
+
+    # Recency boost (older records => higher concern)
+    current_year = datetime.utcnow().year
+    df["recency_score"] = (current_year - df["event_year"]).clip(lower=0)
+    df["recency_score"] = (df["recency_score"] - df["recency_score"].min()) / max(df["recency_score"].max() - df["recency_score"].min(), 1)
+
+    # Combine
+    df["risk_score"] = (0.6 * df["rarity_score"] + 0.4 * df["recency_score"]).clip(0, 1)
+    df["risk_category"] = pd.cut(
+        df["risk_score"], bins=[0, 0.33, 0.66, 1.0], labels=["Low", "Medium", "High"]
+    )
+
+    # Minimal supporting columns
+    df["species_count"] = 1
+    df["forest_cover"] = np.nan
+    df["temperature"] = np.nan
+    df["precipitation"] = np.nan
+
     return df
 
 
@@ -109,9 +211,47 @@ def create_dashboard():
         "Select Page",
         ["Overview", "Risk Prediction", "Species Analysis", "Climate Trends", "Data Explorer"]
     )
-    
+
+    st.sidebar.markdown("---")
+    st.sidebar.subheader("GBIF Data Filters")
+    sci_name = st.sidebar.text_input("Scientific Name (optional)")
+    country = st.sidebar.text_input("Country Code (e.g., IN, US)")
+    limit = st.sidebar.slider("Max records", 50, 1000, 300, step=50)
+    use_gbif = st.sidebar.checkbox("Use live GBIF data", value=True)
+
     # Load data
-    data = load_sample_data()
+    data = None
+    if use_gbif:
+        try:
+            data = load_gbif_data(sci_name or None, country or None, limit)
+        except Exception as e:
+            st.warning(f"GBIF load failed: {e}. Falling back to demo data.")
+            data = load_sample_data()
+    else:
+        data = load_sample_data()
+
+    # Ensure required columns exist and fill missing values for visuals
+    for col, default in [
+        ("species_count", 1),
+        ("forest_cover", 0.5),
+        ("temperature", 25.0),
+        ("precipitation", 2.0),
+    ]:
+        if col not in data.columns:
+            data[col] = default
+        data[col] = data[col].fillna(default)
+    if "risk_category" not in data.columns:
+        data["risk_category"] = pd.cut(
+            data["risk_score"], bins=[0, 0.33, 0.66, 1.0], labels=["Low", "Medium", "High"]
+        )
+
+    # Normalize categories to avoid plotting KeyError
+    data["risk_category"] = (
+        data["risk_category"].astype(str).str.capitalize().replace({"Nan": "Unknown"})
+    )
+    data["risk_category"] = pd.Categorical(
+        data["risk_category"], categories=["Low", "Medium", "High", "Unknown"], ordered=False
+    )
     
     if page == "Overview":
         show_overview(data)
@@ -204,14 +344,19 @@ def show_overview(data):
         folium.CircleMarker(
             location=[row['latitude'], row['longitude']],
             radius=5,
-            popup=f"Risk: {row['risk_score']:.3f}<br>Species: {row['species_count']}<br>Forest: {row['forest_cover']:.1%}",
+            popup=(
+                f"Risk: {row['risk_score']:.3f}<br>"
+                f"Species Name: {row['species_name']}<br>"
+                f"Species Count: {row['species_count']}<br>"
+                f"Forest: {row['forest_cover']:.1%}"
+            ),
             color=color,
             fill=True,
             fillOpacity=0.7
         ).add_to(m)
     
-    # Display map
-    map_data = st_folium(m, width=700, height=500)
+    # Display map without JSON serialization issues
+    html(m._repr_html_(), height=500)
 
 
 def show_risk_prediction(data):
@@ -290,7 +435,7 @@ def show_risk_prediction(data):
                 icon=folium.Icon(color='red' if risk_score > 0.6 else 'orange' if risk_score > 0.3 else 'green')
             ).add_to(m)
             
-            st_folium(m, width=700, height=400)
+            html(m._repr_html_(), height=400)
         
         else:
             st.error("Invalid coordinates. Please check latitude and longitude values.")
@@ -334,7 +479,9 @@ def show_species_analysis(data):
     
     # Biodiversity hotspots
     st.subheader("Biodiversity Hotspots")
-    hotspots = data.nlargest(10, 'species_count')[['latitude', 'longitude', 'species_count', 'risk_score']]
+    hotspots = data.nlargest(10, 'species_count')[[
+        'latitude', 'longitude', 'species_name', 'species_count', 'risk_score'
+    ]]
     st.dataframe(hotspots, use_container_width=True)
 
 

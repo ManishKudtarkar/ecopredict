@@ -208,10 +208,9 @@ async def generate_heatmap(
         
         return HeatmapResponse(
             bounds=bounds,
-            heatmap_data=heatmap_data,
+            data=heatmap_data,
             resolution=request.resolution,
-            output_format=request.output_format,
-            timestamp=pd.Timestamp.now().isoformat()
+            model_used=request.model_name or "default"
         )
         
     except Exception as e:
