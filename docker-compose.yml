@@ -2,34 +2,115 @@ version: '3.8'
 
 services:
   ecopredict-api:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ecopredict-api
     ports:
       - "8000:8000"
     volumes:
       - ./data:/app/data
       - ./models:/app/models
       - ./outputs:/app/outputs
+      - ./logs:/app/logs
     environment:
       - PYTHONPATH=/app
-    command: python src/api/main.py
+      - API_HOST=0.0.0.0
+      - API_PORT=8000
+      - API_WORKERS=4
+      - API_DEBUG=false
+      - LOG_LEVEL=INFO
+    env_file:
+      - .env
+    command: python -m uvicorn src.api.main:app --host 0.0.0.0 --port 8000 --workers 4
     networks:
       - ecopredict-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "5"
 
   ecopredict-dashboard:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ecopredict-dashboard
     ports:
       - "8501:8501"
     volumes:
       - ./data:/app/data
       - ./models:/app/models
       - ./outputs:/app/outputs
+      - ./logs:/app/logs
     environment:
       - PYTHONPATH=/app
+      - STREAMLIT_SERVER_PORT=8501
+      - STREAMLIT_SERVER_ADDRESS=0.0.0.0
+      - STREAMLIT_LOGGER_LEVEL=info
+    env_file:
+      - .env
     command: streamlit run src/dashboard/app.py --server.port=8501 --server.address=0.0.0.0
     networks:
       - ecopredict-network
     depends_on:
-      - ecopredict-api
+      ecopredict-api:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "5"
+
+  # Optional: PostgreSQL database for production
+  postgres:
+    image: postgres:15-alpine
+    container_name: ecopredict-db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: ecopredict
+      POSTGRES_USER: ecopredict
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-ecopredict}
+    networks:
+      - ecopredict-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ecopredict"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Optional: Prometheus for monitoring
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: ecopredict-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+    networks:
+      - ecopredict-network
+    restart: unless-stopped
 
 networks:
   ecopredict-network:
@@ -37,5 +118,5 @@ networks:
 
 volumes:
   ecopredict-data:
-  ecopredict-models:
-  ecopredict-outputs:
+  postgres_data:
+  prometheus_data:
