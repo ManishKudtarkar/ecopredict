@@ -35,10 +35,9 @@ Your EcoPredict application has been completely transformed from a development p
 4. ✅ `startup.bat` - Windows deployment script
 5. ✅ `requirements-dev.txt` - Development dependencies
 6. ✅ `PRODUCTION_READY.md` - Quick start guide
-7. ✅ `PRODUCTION_SUMMARY.md` - Deployment summary
-8. ✅ `prometheus.yml` - Monitoring configuration
-9. ✅ `scripts/healthcheck.sh` - Health verification
-10. ✅ `src/api/health.py` - Health check endpoints
+7. ✅ `prometheus.yml` - Monitoring configuration
+8. ✅ `scripts/healthcheck.sh` - Health verification
+9. ✅ `src/api/health.py` - Health check endpoints
 
 ### Updated Files (7 Modified)
 1. ✅ `config/config.yaml` - 45 lines (9x expansion)
@@ -112,7 +111,6 @@ Access:
 | **PRODUCTION_READY.md** | Quick start guide | 10 min |
 | **DEPLOYMENT.md** | Full deployment guide | 20 min |
 | **DEPLOYMENT_CHECKLIST.md** | 67-item verification | 30 min |
-| **README_PRODUCTION.md** | Production details | 15 min |
 | **DEMO_RESULTS.md** | Sample outputs | 10 min |
 | **PROJECT_COMPLETION_REPORT.md** | Detailed completion | 15 min |
 
