@@ -71,10 +71,7 @@ Edit configuration files in the `config/` directory:
 - `config.yaml`: General project settings
 - `model_params.yaml`: ML model parameters
 - `paths.yaml`: Data and output paths
-
 ## API Endpoints
-
-- `GET /predict`: Get predictions for coordinates
 - `GET /risk-zones`: Get risk zone boundaries
 - `GET /heatmap`: Generate risk heatmaps
 
